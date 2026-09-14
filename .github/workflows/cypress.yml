@@ -1,0 +1,54 @@
+name: Cypress E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start GitLab
+        run: |
+          docker run -d --name gitlab \
+            --publish 8080:80 \
+            --publish 2222:22 \
+            wlsf82/gitlab-ce
+
+      - name: Wait for GitLab
+        run: |
+          for attempt in {1..60}; do
+            if curl --silent --fail http://localhost:8080/users/sign_in >/dev/null; then
+              exit 0
+            fi
+            sleep 10
+          done
+          docker logs gitlab
+          exit 1
+
+      - name: Run Cypress tests
+        env:
+          CYPRESS_user_name: ${{ secrets.CYPRESS_USER_NAME }}
+          CYPRESS_user_password: ${{ secrets.CYPRESS_USER_PASSWORD }}
+          CYPRESS_gitlab_access_token: ${{ secrets.CYPRESS_GITLAB_ACCESS_TOKEN }}
+        run: npm test
+
+      - name: Show GitLab logs on failure
+        if: failure()
+        run: docker logs gitlab
