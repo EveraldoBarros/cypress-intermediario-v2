@@ -4,4 +4,6 @@ cypress/downloads/
 cypress/screenshots/
 cypress/videos/
 node_modules/
+Enter file in which to save the key
+Enter file in which to save the key.pub
 
